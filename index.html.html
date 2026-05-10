@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GuestsPing — Guest Communication Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  .login-overlay {
+    position: fixed; inset: 0; background: #F7F5F0;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; font-family: 'DM Sans', sans-serif;
+  }
+  .login-box {
+    background: white; border: 1px solid #E2DDD4; border-radius: 16px;
+    padding: 40px; width: 360px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  .login-logo { font-family: 'DM Serif Display', serif; font-size: 28px; color: #1B4F72; margin-bottom: 6px; }
+  .login-tagline { font-size: 13px; color: #9E9A94; margin-bottom: 28px; }
+  .login-input {
+    width: 100%; padding: 11px 14px; border: 1px solid #E2DDD4; border-radius: 8px;
+    font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 12px;
+    text-align: center; letter-spacing: 2px;
+  }
+  .login-input:focus { border-color: #1B4F72; }
+  .login-btn {
+    width: 100%; padding: 11px; background: #1B4F72; color: white; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .login-btn:hover { background: #15406A; }
+  .login-error { font-size: 12px; color: #A32D2D; margin-top: 8px; display:none; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --surface2: #F0EDE6;
+    --border: #E2DDD4;
+    --border2: #C8C2B6;
+    --text: #1A1814;
+    --text2: #6B6760;
+    --text3: #9E9A94;
+    --accent: #1B4F72;
+    --accent-light: #D6E8F5;
+    --accent-mid: #2E86C1;
+    --success: #1A6B3C;
+    --success-bg: #D5F0E2;
+    --warn: #7A4F00;
+    --warn-bg: #FFF0CC;
+    --danger: #8B1A1A;
+    --danger-bg: #FDDEDE;
+    --info: #1B4F72;
+    --info-bg: #D6E8F5;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+  /* Layout */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg); }
+
+  /* Sidebar */
+  .logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+  .logo-name { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--accent); letter-spacing: -0.3px; }
+  .logo-tagline { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .property-box { margin: 12px; padding: 10px 12px; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border); cursor: pointer; }
+  .property-box-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .property-box-name { font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; }
+  .nav { padding: 8px; flex: 1; }
+  .nav-section { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; padding: 12px 10px 5px; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px; font-size: 13px; color: var(--text2); cursor: pointer; margin-bottom: 1px; transition: all 0.15s; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+  .nav-badge { margin-left: auto; font-size: 10px; font-weight: 600; background: var(--accent); color: white; padding: 2px 6px; border-radius: 20px; }
+  .sidebar-footer { padding: 12px; border-top: 1px solid var(--border); }
+  .user-row { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .user-name { font-size: 13px; font-weight: 500; }
+  .user-role { font-size: 11px; color: var(--text3); }
+
+  /* Topbar */
+  .topbar { padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar-left h1 { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; color: var(--text); letter-spacing: -0.3px; }
+  .topbar-left p { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .topbar-actions { display: flex; gap: 8px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text); transition: all 0.15s; }
+  .btn:hover { background: var(--surface2); border-color: var(--border2); }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:hover { background: #15406A; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-ghost { border-color: transparent; background: transparent; }
+  .btn-ghost:hover { background: var(--surface2); border-color: var(--border); }
+
+  /* Content */
+  .content { padding: 24px; flex: 1; }
+
+  /* Metrics */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .metric-value { font-size: 26px; font-weight: 300; font-family: 'DM Serif Display', serif; letter-spacing: -0.5px; }
+  .metric-delta { font-size: 11px; margin-top: 5px; display: flex; align-items: center; gap: 3px; }
+  .delta-up { color: var(--success); }
+  .delta-neutral { color: var(--text3); }
+
+  /* Two-col layout */
+  .two-col { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-size: 13px; font-weight: 600; }
+
+  /* Guest Table */
+  .guest-table { width: 100%; border-collapse: collapse; }
+  .guest-table th { text-align: left; padding: 10px 18px; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); background: #FAFAF8; }
+  .guest-table td { padding: 11px 18px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  .guest-table tr:last-child td { border-bottom: none; }
+  .guest-table tr:hover td { background: #FAFAF8; }
+  .guest-name-cell { display: flex; align-items: center; gap: 10px; }
+  .guest-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-sent { background: var(--success-bg); color: var(--success); }
+  .badge-scheduled { background: var(--info-bg); color: var(--info); }
+  .badge-pending { background: var(--warn-bg); color: var(--warn); }
+  .badge-failed { background: var(--danger-bg); color: var(--danger); }
+
+  /* Right panel */
+  .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Templates */
+  .template-item { padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+  .template-item:last-child { border-bottom: none; }
+  .template-item:hover { background: #FAFAF8; }
+  .template-item.active { background: var(--accent-light); border-left: 3px solid var(--accent); }
+  .template-name { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .template-meta { font-size: 11px; color: var(--text3); display: flex; gap: 12px; }
+
+  /* Compose */
+  .compose-box { padding: 14px; border-top: 1px solid var(--border); }
+  .compose-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .compose-textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--text); background: var(--surface2); resize: none; height: 96px; outline: none; transition: border-color 0.15s; }
+  .compose-textarea:focus { border-color: var(--accent); }
+  .merge-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+  .merge-tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer; transition: all 0.1s; }
+  .merge-tag:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+  .compose-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+
+  /* Channel tabs */
+  .channel-tabs { display: flex; padding: 10px 14px; gap: 6px; border-bottom: 1px solid var(--border); }
+  .ch-tab { flex: 1; padding: 6px 8px; font-size: 12px; font-weight: 500; border-radius: 7px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text2); text-align: center; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: 'DM Sans', sans-serif; }
+  .ch-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .ch-tab:not(.active):hover { background: var(--surface2); }
+
+  /* Stats bar */
+  .stats-bar { display: flex; gap: 0; border-top: 1px solid var(--border); }
+  .stat-item { flex: 1; padding: 10px 14px; text-align: center; border-right: 1px solid var(--border); }
+  .stat-item:last-child { border-right: none; }
+  .stat-num { font-size: 17px; font-weight: 500; }
+  .stat-lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1px; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,18,14,0.45); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 14px; width: 520px; max-width: 95vw; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 18px; font-weight: 400; }
+  .modal-body { padding: 22px; }
+  .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 0.04em; }
+  .form-input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text); background: var(--surface); outline: none; transition: border-color 0.15s; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: white; padding: 12px 18px; border-radius: 10px; font-size: 13px; display: flex; align-items: center; gap: 8px; z-index: 200; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast-success { background: #1A4A30; }
+
+  /* Page sections */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Guests page */
+  .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+  .search-input { flex: 1; padding: 9px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--text); outline: none; }
+  .search-input:focus { border-color: var(--accent); }
+
+  /* Templates page */
+  .templates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .template-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; cursor: pointer; transition: all 0.15s; }
+  .template-card:hover { border-color: var(--accent-mid); box-shadow: var(--shadow); }
+  .template-card-title { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+  .template-card-preview { font-size: 12px; color: var(--text2); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; }
+  .template-card-meta { display: flex; gap: 8px; align-items: center; }
+
+  /* Schedule page */
+  .schedule-list { display: flex; flex-direction: column; gap: 10px; }
+  .schedule-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .schedule-time { text-align: center; min-width: 56px; }
+  .schedule-time-main { font-size: 16px; font-weight: 600; }
+  .schedule-time-sub { font-size: 10px; color: var(--text3); }
+  .schedule-info { flex: 1; }
+  .schedule-title { font-size: 13px; font-weight: 500; }
+  .schedule-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .content { animation: fadeIn 0.25s ease; }
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">GuestsPing</div>
+    <div class="login-tagline">Guest Communication Platform</div>
+    <input class="login-input" type="password" id="login-password" placeholder="Enter password" onkeydown="if(event.key==='Enter') checkPassword()">
+    <button class="login-btn" onclick="checkPassword()">Sign in</button>
+    <div class="login-error" id="login-error">Incorrect password — try again</div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-name">GuestsPing</div>
+      <div class="logo-tagline">Guest Communication Platform</div>
+    </div>
+    <div class="property-box" onclick="showPropertyModal()">
+      <div class="property-box-label">Active property</div>
+      <div class="property-box-name">
+        <span id="active-property">Swiss Diamond Hotel</span>
+        <span style="color:var(--text3); font-size:12px;">⌄</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="showPage('dashboard', this)">
+        <span class="icon">⊞</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('guests', this)">
+        <span class="icon">◎</span> Guests
+        <span class="nav-badge" id="guest-count-badge">14</span>
+      </div>
+      <div class="nav-section">Messaging</div>
+      <div class="nav-item" onclick="showPage('templates', this)">
+        <span class="icon">≡</span> Templates
+      </div>
+      <div class="nav-item" onclick="showPage('schedule', this)">
+        <span class="icon">◷</span> Sent History
+      </div>
+      <div class="nav-section">Account</div>
+      <div class="nav-item" onclick="showPage('settings', this)">
+        <span class="icon">◈</span> Settings
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-row">
+        <div class="avatar">AK</div>
+        <div>
+          <div class="user-name">Andi Kastrati</div>
+          <div class="user-role">Manager</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- DASHBOARD PAGE -->
+    <div id="page-dashboard" class="page active">
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1>Dashboard</h1>
+          <p id="dashboard-subtitle">Loading...</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-sm" onclick="openAddGuest()">+ Add guest</button>
+          <button class="btn btn-sm" onclick="document.getElementById('csv-upload').click()">⬆ Import CSV</button>
+          <input type="file" id="csv-upload" accept=".csv" style="display:none;" onchange="importCSV(event)">
+          <button class="btn btn-primary btn-sm" onclick="sendAllPending()">↑ Send all pending</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Messages sent today</div>
+            <div class="metric-value" id="m-sent">—</div>
+            <div class="metric-delta delta-neutral" id="m-sent-sub">Loading...</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Total guests</div>
+            <div class="metric-value" id="m-total">—</div>
+            <div class="metric-delta delta-neutral" id="m-total-sub">Loading...</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Tomorrow's arrivals</div>
+            <div class="metric-value" id="m-arrivals">—</div>
+            <div class="metric-delta delta-neutral" id="m-notified">Loading...</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Pending messages</div>
+            <div class="metric-value" id="m-pending">—</div>
+            <div class="metric-delta delta-neutral" id="m-pending-sub">Need attention</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Guest list -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Tomorrow's arrivals</span>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span style="font-size:11px; color:var(--text3);" id="arrivals-date-label"></span>
+              </div>
+            </div>
+            <div class="channel-tabs">
+              <button class="ch-tab active" onclick="setChannel(this,'email')">✉ Email</button>
+              <button class="ch-tab" onclick="setChannel(this,'sms')">✆ SMS</button>
+              <button class="ch-tab" onclick="setChannel(this,'both')">⊕ Both</button>
+            </div>
+            <table class="guest-table" id="dashboard-guest-table">
+              <thead>
+                <tr>
+                  <th>Guest</th>
+                  <th>Room</th>
+                  <th>Check-in</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-guests">
+              </tbody>
+            </table>
+            <div class="stats-bar">
+              <div class="stat-item"><div class="stat-num" id="stat-sent">0</div><div class="stat-lbl">Sent</div></div>
+              <div class="stat-item"><div class="stat-num" id="stat-scheduled">0</div><div class="stat-lbl">Scheduled</div></div>
+              <div class="stat-item"><div class="stat-num" id="stat-pending">0</div><div class="stat-lbl">Pending</div></div>
+              <div class="stat-item"><div class="stat-num" id="stat-failed">0</div><div class="stat-lbl">Failed</div></div>
+            </div>
+          </div>
+
+          <!-- Right panel -->
+          <div class="right-col">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Message templates</span>
+                <button class="btn btn-ghost btn-sm" onclick="showPage('templates', document.querySelector('.nav-item:nth-child(4)'))">View all</button>
+              </div>
+              <div id="template-list-sidebar"></div>
+              <div class="compose-box">
+                <div class="compose-label">Edit message</div>
+                <textarea class="compose-textarea" id="compose-text" placeholder="Hi {first_name}, we're excited to welcome you to {property_name} tomorrow! Check-in begins at {checkin_time}. Your room is {room_number}. Parking is available at the main entrance. We look forward to seeing you!"></textarea>
+                <div class="merge-tags">
+                  <span class="merge-tag" onclick="insertTag('{first_name}')">{first_name}</span>
+                  <span class="merge-tag" onclick="insertTag('{room_number}')">{room_number}</span>
+                  <span class="merge-tag" onclick="insertTag('{checkin_time}')">{checkin_time}</span>
+                  <span class="merge-tag" onclick="insertTag('{property_name}')">{property_name}</span>
+                  <span class="merge-tag" onclick="insertTag('{wifi_password}')">{wifi_password}</span>
+                </div>
+                <div class="compose-footer">
+                  <button class="btn btn-ghost btn-sm" onclick="previewMessage()">Preview</button>
+                  <button class="btn btn-primary btn-sm" onclick="scheduleSelected()">Schedule ↑</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GUESTS PAGE -->
+    <div id="page-guests" class="page">
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1>Guests</h1>
+          <p>All guests · Swiss Diamond Hotel</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary btn-sm" onclick="openAddGuest()">+ Add guest</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="search-bar">
+          <input class="search-input" type="text" placeholder="Search by name, email, or room…" oninput="filterGuests(this.value)" id="guest-search">
+          <input type="date" id="date-filter" class="form-input" style="width:180px;padding:9px 12px;font-size:13px;" onchange="filterGuests(document.getElementById('guest-search').value)" title="Filter by arrival date">
+          <button class="btn btn-sm" onclick="clearDateFilter()">Clear</button>
+        </div>
+        <div class="card">
+          <table class="guest-table" id="guests-full-table">
+            <thead>
+              <tr>
+                <th>Guest</th>
+                <th>Email</th>
+                <th>Room</th>
+                <th>Arrival</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="guests-full-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEMPLATES PAGE -->
+    <div id="page-templates" class="page">
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1>Templates</h1>
+          <p>Reusable message templates with merge tags</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary btn-sm" onclick="openAddTemplate()">+ New template</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="templates-grid" id="templates-grid"></div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE PAGE -->
+    <div id="page-schedule" class="page">
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1>Sent History</h1>
+          <p>All emails sent to guests</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-sm" onclick="clearSentHistory()">Clear history</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <table class="guest-table" id="sent-history-table">
+            <thead>
+              <tr>
+                <th>Guest</th>
+                <th>Email</th>
+                <th>Room type</th>
+                <th>Arrival date</th>
+                <th>Sent</th>
+              </tr>
+            </thead>
+            <tbody id="sent-history-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div id="page-settings" class="page">
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1>Settings</h1>
+          <p>Swiss Diamond Hotel configuration</p>
+        </div>
+      </div>
+      <div class="content">
+        <div style="max-width:520px; display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Property details</span></div>
+            <div style="padding:18px; display:flex; flex-direction:column; gap:14px;">
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Property name</label>
+                <input class="form-input" value="Swiss Diamond Hotel" id="setting-name">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Check-in time</label>
+                <input class="form-input" value="3:00 PM" id="setting-checkin">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">WiFi password</label>
+                <input class="form-input" value="OceanBreeze2025" id="setting-wifi">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Sender email</label>
+                <input class="form-input" value="welcome@sandyshoresresort.com" id="setting-email">
+              </div>
+              <button class="btn btn-primary btn-sm" style="width:fit-content;" onclick="saveSettings()">Save settings</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Notification schedule</span></div>
+            <div style="padding:18px;">
+              <div class="form-group" style="margin:0 0 14px;">
+                <label class="form-label">Send pre-arrival message</label>
+                <select class="form-input">
+                  <option selected>24 hours before check-in</option>
+                  <option>48 hours before check-in</option>
+                  <option>Same morning as check-in</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Channels</label>
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                  <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="checkbox" checked> Email</label>
+                  <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;"><input type="checkbox"> SMS (requires Twilio)</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add Guest Modal -->
+<div class="modal-overlay" id="modal-guest">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add guest</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-guest')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">First name</label>
+          <input class="form-input" id="g-first" placeholder="Maria">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last name</label>
+          <input class="form-input" id="g-last" placeholder="Reyes">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email address</label>
+        <input class="form-input" id="g-email" placeholder="maria@email.com" type="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Room type</label>
+        <select class="form-input" id="g-room">
+          <option value="" disabled selected>Select a room type…</option>
+          <optgroup label="First Floor">
+            <option value="First Floor - 2 Queens">First Floor — 2 Queens</option>
+            <option value="First Floor - 1 King">First Floor — 1 King</option>
+          </optgroup>
+          <optgroup label="Second Floor">
+            <option value="Second Floor - 2 Queens">Second Floor — 2 Queens</option>
+            <option value="Second Floor - 1 King">Second Floor — 1 King</option>
+            <option value="Second Floor - 1 King + Sofa Bed">Second Floor — 1 King + Sofa Bed</option>
+            <option value="Second Floor Suite">Second Floor Suite</option>
+          </optgroup>
+          <optgroup label="Ocean Front">
+            <option value="Ocean Front - 2 Queens">Ocean Front — 2 Queens</option>
+            <option value="Ocean Front - 1 King + Sofa Bed">Ocean Front — 1 King + Sofa Bed</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Check-in time</label>
+        <select class="form-input" id="g-time">
+          <option value="" disabled selected>Select check-in time…</option>
+          <option value="3:00 PM">3:00 PM</option>
+          <option value="4:00 PM">4:00 PM</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Arrival date</label>
+        <input class="form-input" id="g-date" type="date">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal('modal-guest')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="addGuest()">Add guest</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Guest Modal -->
+<div class="modal-overlay" id="modal-edit-guest">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Edit guest</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-guest')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-g-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">First name</label>
+          <input class="form-input" id="edit-g-first">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last name</label>
+          <input class="form-input" id="edit-g-last">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email address</label>
+        <input class="form-input" id="edit-g-email" type="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Room type</label>
+        <select class="form-input" id="edit-g-room">
+          <optgroup label="First Floor">
+            <option value="First Floor - 2 Queens">First Floor — 2 Queens</option>
+            <option value="First Floor - 1 King">First Floor — 1 King</option>
+          </optgroup>
+          <optgroup label="Second Floor">
+            <option value="Second Floor - 2 Queens">Second Floor — 2 Queens</option>
+            <option value="Second Floor - 1 King">Second Floor — 1 King</option>
+            <option value="Second Floor - 1 King + Sofa Bed">Second Floor — 1 King + Sofa Bed</option>
+            <option value="Second Floor Suite">Second Floor Suite</option>
+          </optgroup>
+          <optgroup label="Ocean Front">
+            <option value="Ocean Front - 2 Queens">Ocean Front — 2 Queens</option>
+            <option value="Ocean Front - 1 King + Sofa Bed">Ocean Front — 1 King + Sofa Bed</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Check-in time</label>
+        <select class="form-input" id="edit-g-time">
+          <option value="3:00 PM">3:00 PM</option>
+          <option value="4:00 PM">4:00 PM</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Arrival date</label>
+        <input class="form-input" id="edit-g-date" type="date">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Status</label>
+        <select class="form-input" id="edit-g-status">
+          <option value="pending">Pending</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="sent">Sent</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal('modal-edit-guest')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveEditGuest()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="modal-preview">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Message preview</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-preview')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px; color:var(--text3); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">Preview for: Maria Reyes · Ocean Suite 4B</div>
+      <div style="background:var(--surface2); border-radius:10px; padding:16px; font-size:13px; line-height:1.7; white-space:pre-wrap; border:1px solid var(--border);" id="preview-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal('modal-preview')">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="closeModal('modal-preview'); scheduleSelected();">Schedule send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Template Modal -->
+<div class="modal-overlay" id="modal-template">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New template</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-template')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Template name</label>
+        <input class="form-input" id="t-name" placeholder="e.g. Standard check-in info">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Channel</label>
+        <select class="form-input" id="t-channel">
+          <option>Email</option><option>SMS</option><option>Both</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Message body</label>
+        <textarea class="compose-textarea" id="t-body" style="height:120px;" placeholder="Hi {first_name}, we look forward to welcoming you…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal('modal-template')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="addTemplate()">Save template</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span id="toast-icon">✓</span>
+  <span id="toast-msg">Done!</span>
+</div>
+
+<script>
+// Password protection
+const APP_PASSWORD = 'Shorepoint123';
+function checkPassword() {
+  const val = document.getElementById('login-password').value;
+  if(val === APP_PASSWORD) {
+    document.getElementById('login-overlay').style.display = 'none';
+    sessionStorage.setItem('gp_auth', '1');
+    loadGuests();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-password').focus();
+  }
+}
+
+// Check if already authenticated this session
+if(sessionStorage.getItem('gp_auth') === '1') {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('login-overlay').style.display = 'none';
+  });
+}
+
+// Room number to room type map
+const ROOM_MAP = {
+  '101': 'First Floor - 2 Queens', '102': 'First Floor - 2 Queens', '103': 'First Floor - 2 Queens',
+  '104': 'First Floor - 2 Queens', '105': 'First Floor - 1 King', '107': 'First Floor - 1 King',
+  '108': 'First Floor - 2 Queens', '109': 'First Floor - 2 Queens', '110': 'First Floor - 2 Queens',
+  '111': 'First Floor - 2 Queens', '112': 'First Floor - 2 Queens', '113': 'First Floor - 2 Queens',
+  '114': 'First Floor - 2 Queens', '115': 'First Floor - 2 Queens', '116': 'First Floor - 2 Queens',
+  '117': 'First Floor - 1 King', '118': 'First Floor - 1 King', '119': 'First Floor - 2 Queens',
+  '120': 'First Floor - 2 Queens', '121': 'First Floor - 2 Queens',
+  '201': 'Second Floor - 2 Queens', '202': 'Second Floor - 2 Queens', '203': 'Second Floor - 2 Queens',
+  '204': 'Second Floor - 2 Queens', '205': 'Second Floor - 2 Queens', '206': 'Second Floor - 2 Queens',
+  '207': 'Second Floor - 2 Queens', '208': 'Second Floor - 2 Queens', '209': 'Second Floor - 2 Queens',
+  '210': 'Second Floor - 1 King', '211': 'Second Floor - 1 King + Sofa Bed',
+  '212': 'Second Floor - 1 King + Sofa Bed', '213': 'Second Floor - 2 Queens',
+  '214': 'Second Floor - 2 Queens', '215': 'Second Floor - 2 Queens', '216': 'Second Floor - 2 Queens',
+  '217': 'Second Floor - 2 Queens', '218': 'Second Floor - 2 Queens', '219': 'Second Floor - 2 Queens',
+  '220': 'Second Floor - 2 Queens', '221': 'Second Floor - 2 Queens', '222': 'Second Floor - 1 King',
+  '223': 'Second Floor - 1 King', '224': 'Second Floor - 1 King',
+  '225': 'Ocean Front - 2 Queens', '226': 'Ocean Front - 2 Queens', '227': 'Ocean Front - 2 Queens',
+  '228': 'Ocean Front - 2 Queens', '229': 'Ocean Front - 1 King + Sofa Bed',
+  '230': 'Ocean Front - 1 King + Sofa Bed',
+  '300': 'Second Floor Suite', '400': 'Second Floor Suite'
+};
+
+// EmailJS credentials
+const EJS_SERVICE  = 'service_6r31lba';
+const EJS_TEMPLATE = 'template_18jz7vu';
+const EJS_KEY      = 'oybfLVCo23KN2Lwxf';
+emailjs.init(EJS_KEY);
+
+// Supabase credentials
+const SUPA_URL = 'https://thmlxlkilyxftytrpbpr.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRobWx4bGtpbHl4ZnR5dHJwYnByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjg5NDYsImV4cCI6MjA5Mzc0NDk0Nn0.LqYQBoxiyk-v3DDoGKvUoKKxDc6aPCOWlfwJuwuI4_0';
+const db = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const COLORS = ['#D6E8F5','#D5F0E2','#FFF0CC','#FDDEDE','#EDE8FF','#FFE8D6'];
+const TEXT_COLORS = ['#1B4F72','#1A6B3C','#7A4F00','#8B1A1A','#4A1D7A','#7A3B00'];
+
+let guests = [];
+
+async function loadGuests() {
+  try {
+    console.log('Loading guests from Supabase...');
+    const { data, error } = await db.from('guests').select('*').order('date', { ascending: true });
+    
+    if(error) {
+      console.error('Supabase load error:', JSON.stringify(error));
+      document.getElementById('dashboard-subtitle').textContent = 'Could not connect — check internet connection';
+      showToast('Could not load guests: ' + (error.message || 'unknown error'), '⚠');
+      return;
+    }
+
+    guests = data || [];
+    console.log('Loaded', guests.length, 'guests');
+
+    // Update subtitle with real date and tomorrow's arrivals
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const tomorrowGuests = guests.filter(g => g.date === tomorrowStr);
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const now = new Date();
+    const subtitle = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()} · ${tomorrowGuests.length} arrival${tomorrowGuests.length !== 1 ? 's' : ''} tomorrow`;
+    document.getElementById('dashboard-subtitle').textContent = subtitle;
+
+    renderDashboardGuests();
+    renderFullGuests();
+  } catch(err) {
+    console.error('loadGuests exception:', err);
+    document.getElementById('dashboard-subtitle').textContent = 'Connection error — try refreshing';
+    showToast('Connection error: ' + err.message, '⚠');
+  }
+}
+
+async function saveGuest(g) {
+  const payload = {
+    first: g.first,
+    last: g.last,
+    email: g.email,
+    room: g.room,
+    time: g.time,
+    date: g.date,
+    status: g.status
+  };
+  const { data, error } = await db.from('guests').insert([payload]).select();
+  if(error) {
+    console.error('Save error:', JSON.stringify(error));
+    showToast('Could not save guest: ' + (error.message||'unknown error'), '⚠');
+    return null;
+  }
+  return data[0];
+}
+
+async function updateGuestStatus(id, status) {
+  const { error } = await db.from('guests').update({ status }).eq('id', id);
+  if(error) console.error('Update error:', error);
+}
+
+async function deleteGuestFromDb(id) {
+  const { error } = await db.from('guests').delete().eq('id', id);
+  if(error) console.error('Delete error:', error);
+}
+
+let templates = [
+  { id:1, name:'Standard check-in info', channel:'Email', body:'Hi {first_name},\n\nWe\'re so excited to welcome you to {property_name} tomorrow!\n\nCheck-in begins at {checkin_time}. Your room is {room_number}. Parking is available at the main entrance — just let the front desk know you\'ve arrived.\n\nWiFi: {wifi_password}\n\nIf you need anything before your stay, reply to this email.\n\nSee you soon!\nThe {property_name} Team' },
+  { id:2, name:'Early bird welcome', channel:'SMS', body:'Hi {first_name}! Your stay at {property_name} starts tomorrow. Check-in: {checkin_time}, Room: {room_number}. We can\'t wait to see you! 🌊' },
+  { id:3, name:'Upsell + amenities', channel:'Email', body:'Hi {first_name},\n\nYour stay at {property_name} is just around the corner!\n\nDid you know we offer:\n• Beachside cabana rentals ($35/day)\n• Spa packages (book at the front desk)\n• Complimentary breakfast 7-10am\n\nCheck-in is tomorrow at {checkin_time}, room {room_number}.\n\nSee you soon!' },
+];
+
+let sentHistory = [];
+
+let activeTemplate = templates[0];
+let selectedChannel = 'email';
+let settings = { name:'Swiss Diamond Hotel', checkin:'3:00 PM', wifi:'', email:'support@guestsping.com' };
+
+function initials(g) { return (g.first[0]+(g.last[0]||'')).toUpperCase(); }
+function colorFor(g) {
+  const i = g.id % COLORS.length;
+  return { bg: COLORS[i], text: TEXT_COLORS[i] };
+}
+function statusBadge(s) {
+  const map = { sent:'badge-sent', scheduled:'badge-scheduled', pending:'badge-pending', failed:'badge-failed' };
+  return `<span class="badge ${map[s]||'badge-pending'}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`;
+}
+
+function renderDashboardGuests() {
+  const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
+  const tomorrow = guests.filter(g => g.date === tomorrowStr);
+  const tbody = document.getElementById('dashboard-guests');
+  tbody.innerHTML = tomorrow.map(g => {
+    const c = colorFor(g);
+    return `<tr>
+      <td><div class="guest-name-cell"><div class="guest-avatar" style="background:${c.bg};color:${c.text};">${initials(g)}</div><div><div style="font-weight:500;">${g.first} ${g.last}</div><div style="font-size:11px;color:var(--text3);">${g.email}</div></div></div></td>
+      <td>${g.room ? g.room : '<span style="color:#854F0B;font-size:11px;font-weight:500;">⚠ Select room</span>'}</td>
+      <td>${g.time}</td>
+      <td>${statusBadge(g.status)}</td>
+      <td><div style="display:flex;gap:4px;">
+        ${g.status==='pending'||g.status==='failed' ? `<button class="btn btn-primary btn-sm" onclick="sendGuest(${g.id})">Send</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openEditGuest(${g.id})">Edit</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  updateStats(tomorrow);
+  updateMetrics(tomorrow);
+}
+
+function updateStats(list) {
+  const counts = { sent:0, scheduled:0, pending:0, failed:0 };
+  list.forEach(g => counts[g.status]++);
+  document.getElementById('stat-sent').textContent = counts.sent;
+  document.getElementById('stat-scheduled').textContent = counts.scheduled;
+  document.getElementById('stat-pending').textContent = counts.pending;
+  document.getElementById('stat-failed').textContent = counts.failed;
+}
+
+async function updateMetrics(tomorrow) {
+  // Tomorrow's arrivals
+  const notified = tomorrow.filter(g => g.status==='sent'||g.status==='scheduled').length;
+  const pending = tomorrow.filter(g => g.status==='pending'||g.status==='failed').length;
+  document.getElementById('m-arrivals').textContent = tomorrow.length;
+  document.getElementById('m-notified').textContent = `${notified} notified`;
+  document.getElementById('m-pending').textContent = pending;
+  document.getElementById('m-pending-sub').textContent = pending > 0 ? 'Need attention' : 'All clear ✓';
+  document.getElementById('guest-count-badge').textContent = guests.length;
+
+  // Total guests
+  document.getElementById('m-total').textContent = guests.length;
+  document.getElementById('m-total-sub').textContent = 'In database';
+
+  // Messages sent today
+  const today = new Date().toISOString().split('T')[0];
+  const { count, error } = await db.from('guests')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'sent')
+    .eq('date', today);
+  if(!error) {
+    document.getElementById('m-sent').textContent = count || 0;
+    document.getElementById('m-sent-sub').textContent = count > 0 ? 'Sent today ✓' : 'None sent yet today';
+  }
+}
+
+function renderTemplateSidebar() {
+  const el = document.getElementById('template-list-sidebar');
+  el.innerHTML = templates.map(t => `
+    <div class="template-item ${t.id===activeTemplate.id?'active':''}" onclick="selectTemplate(${t.id})">
+      <div class="template-name">${t.name}</div>
+      <div class="template-meta"><span>✉ ${t.channel}</span><span>◎ All guests</span></div>
+    </div>`).join('');
+}
+
+function renderTemplatesGrid() {
+  const el = document.getElementById('templates-grid');
+  el.innerHTML = templates.map(t => `
+    <div class="template-card" onclick="selectAndUse(${t.id})">
+      <div class="template-card-title">${t.name}</div>
+      <div class="template-card-preview">${t.body}</div>
+      <div class="template-card-meta">
+        <span class="badge" style="background:var(--info-bg);color:var(--info);">${t.channel}</span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="event.stopPropagation();deleteTemplate(${t.id})">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderFullGuests(filter='', dateFilter='') {
+  const tbody = document.getElementById('guests-full-body');
+  let filtered = guests;
+  if(filter) filtered = filtered.filter(g =>
+    `${g.first} ${g.last} ${g.email} ${g.room}`.toLowerCase().includes(filter.toLowerCase())
+  );
+  if(dateFilter) filtered = filtered.filter(g => g.date === dateFilter);
+
+  // Group by date
+  const groups = {};
+  filtered.forEach(g => {
+    const key = g.date || 'Unknown';
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(g);
+  });
+
+  const sortedDates = Object.keys(groups).sort();
+
+  if(sortedDates.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3);">No guests yet — import a CSV or add guests manually</td></tr>`;
+    return;
+  }
+
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+    const target = new Date(d); target.setHours(0,0,0,0);
+    let tag = '';
+    if(target.getTime() === today.getTime()) tag = ' <span style="background:#EAF3DE;color:#1A6B3C;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;">TODAY</span>';
+    else if(target.getTime() === tomorrow.getTime()) tag = ' <span style="background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;">TOMORROW</span>';
+    return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${tag}`;
+  }
+
+  let html = '';
+  sortedDates.forEach(date => {
+    const group = groups[date];
+    const sentCount = group.filter(g => g.status==='sent').length;
+    const pendingCount = group.filter(g => g.status==='pending'||g.status==='failed').length;
+
+    html += `<tr>
+      <td colspan="6" style="background:#F7F5F0;padding:9px 18px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;font-weight:600;">${formatDate(date)}</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:var(--text3);">${group.length} guest${group.length!==1?'s':''}</span>
+            ${sentCount > 0 ? `<span class="badge badge-sent">${sentCount} sent</span>` : ''}
+            ${pendingCount > 0 ? `<span class="badge badge-pending">${pendingCount} pending</span>` : ''}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+
+    group.forEach(g => {
+      const c = colorFor(g);
+      html += `<tr>
+        <td><div class="guest-name-cell"><div class="guest-avatar" style="background:${c.bg};color:${c.text};">${initials(g)}</div><span style="font-weight:500;">${g.first} ${g.last}</span></div></td>
+        <td style="color:var(--text2);">${g.email}</td>
+        <td>${g.room ? g.room : '<span style="color:#854F0B;font-size:11px;font-weight:500;">⚠ Select room</span>'}</td>
+        <td style="font-size:12px;color:var(--text2);">${g.time}</td>
+        <td>${statusBadge(g.status)}</td>
+        <td><div style="display:flex;gap:4px;">
+          ${g.status!=='sent' ? `<button class="btn btn-primary btn-sm" onclick="sendGuest(${g.id})">Send</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="openEditGuest(${g.id})">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="removeGuest(${g.id})">✕</button>
+        </div></td>
+      </tr>`;
+    });
+  });
+
+  tbody.innerHTML = html;
+}
+
+function renderSentHistory() {
+  const tbody = document.getElementById('sent-history-body');
+  if(!tbody) return;
+  const sent = guests.filter(g => g.status === 'sent');
+  if(sent.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3);">No emails sent yet</td></tr>`;
+    return;
+  }
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  tbody.innerHTML = sent.map(g => {
+    const c = colorFor(g);
+    const d = new Date(g.date + 'T00:00:00');
+    const dateStr = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+    const sentTime = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    return `<tr>
+      <td><div class="guest-name-cell"><div class="guest-avatar" style="background:${c.bg};color:${c.text};">${initials(g)}</div><span style="font-weight:500;">${g.first} ${g.last}</span></div></td>
+      <td style="color:var(--text2);font-size:12px;">${g.email}</td>
+      <td>${g.room || '—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${dateStr}</td>
+      <td><span class="badge badge-sent">✉ Sent</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function clearSentHistory() {
+  showToast('History is based on guest status — archive guests in Supabase to clear', 'ⓘ');
+}
+
+function selectTemplate(id) {
+  activeTemplate = templates.find(t=>t.id===id) || templates[0];
+  document.getElementById('compose-text').value = activeTemplate.body;
+  renderTemplateSidebar();
+}
+
+function selectAndUse(id) {
+  selectTemplate(id);
+  showPage('dashboard', document.querySelector('.nav-item'));
+  showToast('Template loaded — edit and schedule below');
+}
+
+function deleteTemplate(id) {
+  templates = templates.filter(t=>t.id!==id);
+  if(activeTemplate.id===id && templates.length>0) activeTemplate=templates[0];
+  renderTemplatesGrid();
+  renderTemplateSidebar();
+  showToast('Template deleted');
+}
+
+function sendGuest(id) {
+  const g = guests.find(g=>g.id===id);
+  if(!g) return;
+  if(!g.email) { showToast('No email address for this guest','⚠'); return; }
+
+  showToast(`Sending to ${g.first}…`, '↑');
+
+  const params = {
+    to_email:      g.email,
+    to_name:       `${g.first} ${g.last}`,
+    first_name:    g.first,
+    room_number:   g.room,
+    checkin_time:  g.time || settings.checkin,
+    property_name: settings.name,
+    wifi_password: settings.wifi,
+  };
+
+  emailjs.send(EJS_SERVICE, EJS_TEMPLATE, params)
+    .then(() => {
+      g.status = 'sent';
+      updateGuestStatus(g.id, 'sent');
+      renderDashboardGuests();
+      renderFullGuests();
+      const count = parseInt(document.getElementById('m-sent').textContent)||0;
+      document.getElementById('m-sent').textContent = count+1;
+      showToast(`Email sent to ${g.first} ${g.last}!`, '✉');
+    })
+    .catch(err => {
+      g.status = 'failed';
+      renderDashboardGuests();
+      renderFullGuests();
+      showToast(`Failed to send to ${g.first} — check email address`, '⚠');
+      console.error('EmailJS error:', err);
+    });
+}
+
+function retryOrEdit(id) {
+  const g = guests.find(g=>g.id===id);
+  if(g && (g.status==='failed'||g.status==='pending')) sendGuest(id);
+}
+
+function removeGuest(id) {
+  deleteGuestFromDb(id);
+  guests = guests.filter(g=>g.id!==id);
+  renderFullGuests();
+  renderDashboardGuests();
+  showToast('Guest removed');
+}
+
+function sendAllPending() {
+  const pending = guests.filter(g => g.status==='pending' || g.status==='failed');
+  if(pending.length===0) { showToast('No pending guests to send to', '✓'); return; }
+  showToast(`Sending to ${pending.length} guest${pending.length!==1?'s':''}…`, '↑');
+  pending.forEach(g => sendGuest(g.id));
+}
+
+function insertTag(tag) {
+  const ta = document.getElementById('compose-text');
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  ta.value = ta.value.slice(0,start)+tag+ta.value.slice(end);
+  ta.focus();
+  ta.setSelectionRange(start+tag.length, start+tag.length);
+}
+
+function previewMessage() {
+  let text = document.getElementById('compose-text').value;
+  text = text.replace(/{first_name}/g,'Maria')
+             .replace(/{room_number}/g,'Ocean Suite 4B')
+             .replace(/{checkin_time}/g,settings.checkin)
+             .replace(/{property_name}/g,settings.name)
+             .replace(/{wifi_password}/g,settings.wifi);
+  document.getElementById('preview-content').textContent = text;
+  openModal('modal-preview');
+}
+
+function scheduleSelected() {
+  const body = document.getElementById('compose-text').value;
+  if(!body.trim()) { showToast('Please write a message first','⚠'); return; }
+  scheduledMessages.push({ time:'9:00 AM', date:'May 8', template:activeTemplate.name, guests:guests.filter(g=>g.status==='pending').length, channel:selectedChannel==='email'?'Email':selectedChannel==='sms'?'SMS':'Email + SMS' });
+  guests.filter(g=>g.status==='pending').forEach(g => g.status='scheduled');
+  renderDashboardGuests();
+  renderSchedule();
+  showToast('Messages scheduled for 9:00 AM tomorrow!','◷');
+}
+
+function setChannel(el, ch) {
+  selectedChannel = ch;
+  document.querySelectorAll('.ch-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function filterGuests(val) {
+  const dateFilter = document.getElementById('date-filter') ? document.getElementById('date-filter').value : '';
+  renderFullGuests(val, dateFilter);
+}
+
+function clearDateFilter() {
+  document.getElementById('date-filter').value = '';
+  document.getElementById('guest-search').value = '';
+  renderFullGuests('', '');
+}
+
+function openAddGuest() {
+  document.getElementById('g-first').value='';
+  document.getElementById('g-last').value='';
+  document.getElementById('g-email').value='';
+  document.getElementById('g-room').value='';
+  document.getElementById('g-time').value='';
+  document.getElementById('g-date').value='';
+  openModal('modal-guest');
+}
+
+async function addGuest() {
+  const first=document.getElementById('g-first').value.trim();
+  const last=document.getElementById('g-last').value.trim();
+  const email=document.getElementById('g-email').value.trim();
+  const room=document.getElementById('g-room').value;
+  const time=document.getElementById('g-time').value;
+  const date=document.getElementById('g-date').value||new Date().toISOString().split('T')[0];
+  if(!first||!email) { showToast('Please fill in name and email','⚠'); return; }
+  if(!room) { showToast('Please select a room type','⚠'); return; }
+  if(!time) { showToast('Please select a check-in time','⚠'); return; }
+  const newGuest = { first, last, email, room, time, date, status:'pending' };
+  const saved = await saveGuest(newGuest);
+  if(saved) {
+    guests.push(saved);
+    closeModal('modal-guest');
+    renderDashboardGuests();
+    renderFullGuests();
+    showToast(`${first} ${last} added!`,'✓');
+  }
+}
+
+function openAddTemplate() {
+  document.getElementById('t-name').value='';
+  document.getElementById('t-body').value='';
+  openModal('modal-template');
+}
+
+function addTemplate() {
+  const name=document.getElementById('t-name').value.trim();
+  const body=document.getElementById('t-body').value.trim();
+  const channel=document.getElementById('t-channel').value;
+  if(!name||!body) { showToast('Fill in all fields','⚠'); return; }
+  templates.push({ id:Date.now(), name, channel, body });
+  closeModal('modal-template');
+  renderTemplatesGrid();
+  renderTemplateSidebar();
+  showToast('Template saved!','✓');
+}
+
+function openEditGuest(id) {
+  const g = guests.find(g => g.id === id);
+  if(!g) return;
+  document.getElementById('edit-g-id').value = g.id;
+  document.getElementById('edit-g-first').value = g.first;
+  document.getElementById('edit-g-last').value = g.last;
+  document.getElementById('edit-g-email').value = g.email;
+  document.getElementById('edit-g-room').value = g.room;
+  document.getElementById('edit-g-time').value = g.time;
+  document.getElementById('edit-g-date').value = g.date;
+  document.getElementById('edit-g-status').value = g.status;
+  openModal('modal-edit-guest');
+}
+
+async function saveEditGuest() {
+  const id = document.getElementById('edit-g-id').value;
+  const first = document.getElementById('edit-g-first').value.trim();
+  const last = document.getElementById('edit-g-last').value.trim();
+  const email = document.getElementById('edit-g-email').value.trim();
+  const room = document.getElementById('edit-g-room').value;
+  const time = document.getElementById('edit-g-time').value;
+  const date = document.getElementById('edit-g-date').value;
+  const status = document.getElementById('edit-g-status').value;
+  if(!first || !email) { showToast('Please fill in name and email', '⚠'); return; }
+  const { error } = await db.from('guests').update({ first, last, email, room, time, date, status }).eq('id', id);
+  if(error) { showToast('Could not update guest', '⚠'); console.error(error); return; }
+  const g = guests.find(g => String(g.id) === String(id));
+  if(g) { g.first=first; g.last=last; g.email=email; g.room=room; g.time=time; g.date=date; g.status=status; }
+  closeModal('modal-edit-guest');
+  renderDashboardGuests();
+  renderFullGuests();
+  showToast(`${first} ${last} updated!`, '✓');
+}
+
+function importCSV(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const text = e.target.result;
+    const lines = text.split('\n').filter(l => l.trim());
+
+    if(lines.length < 2) { showToast('File appears empty', '⚠'); return; }
+
+    console.log('Total lines:', lines.length);
+    console.log('First 100 chars of line 0:', lines[0].substring(0,100));
+
+    // Header is always line 0
+    const headers = parseCSVLine(lines[0]);
+    console.log('Headers parsed:', headers.length, 'columns');
+
+    // Fixed column indexes based on this system's export format
+    const arrIdx      = headers.indexOf('arrDateDataTextBox');
+    const nameIdx     = headers.indexOf('guestNameDataTextBox');
+    const roomIdx     = headers.indexOf('roomDataTextBox');
+    const emailIdx    = headers.indexOf('commentsDataTextBox');
+
+    console.log('Column indexes — arr:', arrIdx, 'name:', nameIdx, 'room:', roomIdx, 'email:', emailIdx);
+
+    if(arrIdx === -1 || nameIdx === -1) {
+      showToast('Unrecognized file format — check console', '⚠');
+      return;
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    // Data starts at line 1
+    for(let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if(!line) continue;
+
+      try {
+        const cols = parseCSVLine(line);
+
+        const arrDate  = (cols[arrIdx]  || '').trim();
+        const fullName = (cols[nameIdx] || '').trim().replace(/^"|"$/g, '');
+        const email    = (cols[emailIdx] || '').trim();
+
+        // Skip if missing key fields
+        if(!fullName || !arrDate) { skipped++; continue; }
+
+        // Skip if no valid email
+        if(!email || !email.includes('@')) { skipped++; continue; }
+
+        // Parse "Last, First" → first, last
+        let first = '', last = '';
+        if(fullName.includes(',')) {
+          const parts = fullName.split(',');
+          last  = parts[0].trim();
+          first = (parts[1] || '').trim().split(' ')[0];
+        } else {
+          const parts = fullName.split(' ');
+          first = parts[0];
+          last  = parts.slice(1).join(' ');
+        }
+
+        // Convert M/D/YYYY → YYYY-MM-DD
+        const dateParts = arrDate.split('/');
+        if(dateParts.length !== 3) { skipped++; continue; }
+        const isoDate = `${dateParts[2]}-${dateParts[0].padStart(2,'0')}-${dateParts[1].padStart(2,'0')}`;
+
+        // Skip duplicates already in database
+        const exists = guests.find(g => g.email.toLowerCase() === email.toLowerCase() && g.date === isoDate);
+        if(exists) { skipped++; continue; }
+
+        // Look up room type from room number map
+        const roomNum = (cols[roomIdx] || '').trim();
+        const mappedRoom = ROOM_MAP[roomNum] || '';
+
+        const saved = await saveGuest({
+          first, last, email,
+          room: mappedRoom,
+          time: '3:00 PM',
+          date: isoDate,
+          status: 'pending'
+        });
+
+        if(saved) { guests.push(saved); imported++; }
+
+      } catch(err) {
+        console.error('Row parse error:', err);
+        skipped++;
+      }
+    }
+
+    renderDashboardGuests();
+    renderFullGuests();
+    event.target.value = '';
+
+    if(imported > 0) {
+      showToast(`Imported ${imported} guest${imported !== 1 ? 's' : ''}${skipped > 0 ? `, skipped ${skipped}` : ''}!`, '✓');
+    } else {
+      showToast(`No new guests imported — ${skipped} skipped (duplicates or missing email)`, '⚠');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for(let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if(ch === '"') {
+      inQuotes = !inQuotes;
+    } else if(ch === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function cancelSchedule(i) { }
+
+function saveSettings() {
+  settings.name = document.getElementById('setting-name').value;
+  settings.checkin = document.getElementById('setting-checkin').value;
+  settings.wifi = document.getElementById('setting-wifi').value;
+  settings.email = document.getElementById('setting-email').value;
+  document.getElementById('active-property').textContent = settings.name;
+  showToast('Settings saved!','✓');
+}
+
+function showPropertyModal() { showToast('Property switcher — connect multiple resorts in the full version','◉'); }
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg, icon='✓') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = icon;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+function showPage(name, navEl) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(navEl) navEl.classList.add('active');
+  if(name==='guests') renderFullGuests();
+  if(name==='templates') renderTemplatesGrid();
+  if(name==='schedule') renderSentHistory();
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
+});
+
+// Init
+renderTemplateSidebar();
+document.getElementById('compose-text').value = templates[0].body;
+// Only load guests if already authenticated
+if(sessionStorage.getItem('gp_auth') === '1') {
+  loadGuests();
+}
+</script>
+</body>
+</html>
